@@ -1,0 +1,17 @@
+[package]
+name = "memory-monitor"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Kubernetes sidecar for monitoring process memory, detecting leaks, and collecting heap dumps"
+
+[dependencies]
+aws-config = "1"
+aws-sdk-s3 = "1"
+chrono = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
