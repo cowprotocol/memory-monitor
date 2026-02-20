@@ -1,3 +1,4 @@
+use crate::detection::DumpMode;
 use serde::Serialize;
 use tracing::{error, info, warn};
 
@@ -38,11 +39,11 @@ fn s3_console_url(bucket: &str, key: &str) -> String {
     )
 }
 
-fn mode_display(mode: &str) -> &str {
+fn mode_display(mode: DumpMode) -> &'static str {
     match mode {
-        "spike" => "\u{1f6a8}Spike",
-        "slow-leak" => "\u{1f40c}Slow Leak",
-        other => other,
+        DumpMode::Spike => "\u{1f6a8}Spike",
+        DumpMode::SlowLeak => "\u{1f40c}Slow Leak",
+        DumpMode::Baseline => "Baseline",
     }
 }
 
@@ -57,7 +58,7 @@ pub struct SlackNotification<'a> {
     pub baseline_memory: u64,
     pub bucket: &'a str,
     pub s3_key: &'a str,
-    pub mode: &'a str,
+    pub mode: DumpMode,
 }
 
 /// Send a Slack notification about a memory anomaly.
@@ -163,9 +164,9 @@ mod tests {
 
     #[test]
     fn test_mode_display() {
-        assert_eq!(mode_display("spike"), "\u{1f6a8}Spike");
-        assert_eq!(mode_display("slow-leak"), "\u{1f40c}Slow Leak");
-        assert_eq!(mode_display("baseline"), "baseline");
+        assert_eq!(mode_display(DumpMode::Spike), "\u{1f6a8}Spike");
+        assert_eq!(mode_display(DumpMode::SlowLeak), "\u{1f40c}Slow Leak");
+        assert_eq!(mode_display(DumpMode::Baseline), "Baseline");
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::time::Instant;
 
 /// The type of memory anomaly detected.
@@ -7,12 +8,36 @@ pub enum DetectionMode {
     SlowLeak,
 }
 
-impl DetectionMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            DetectionMode::Spike => "spike",
-            DetectionMode::SlowLeak => "slow-leak",
+/// The reason for creating a heap dump (detection + baseline).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DumpMode {
+    Baseline,
+    Spike,
+    SlowLeak,
+}
+
+impl From<DetectionMode> for DumpMode {
+    fn from(mode: DetectionMode) -> Self {
+        match mode {
+            DetectionMode::Spike => DumpMode::Spike,
+            DetectionMode::SlowLeak => DumpMode::SlowLeak,
         }
+    }
+}
+
+impl DumpMode {
+    pub fn is_baseline(self) -> bool {
+        self == DumpMode::Baseline
+    }
+}
+
+impl fmt::Display for DumpMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            DumpMode::Baseline => "baseline",
+            DumpMode::Spike => "spike",
+            DumpMode::SlowLeak => "slow-leak",
+        })
     }
 }
 

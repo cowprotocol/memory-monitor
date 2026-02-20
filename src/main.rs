@@ -7,7 +7,7 @@ mod s3;
 mod slack;
 
 use config::Config;
-use detection::{DetectionMode, Detector};
+use detection::{DetectionMode, Detector, DumpMode};
 use history::History;
 use tracing::{error, info, warn};
 
@@ -26,7 +26,7 @@ impl Monitor {
         &self,
         current_memory: u64,
         baseline_memory: u64,
-        mode: &str,
+        mode: DumpMode,
     ) -> Result<(), String> {
         let timestamp = chrono::Utc::now().format("%Y-%m-%d-%H-%M-%S");
         let dump_file = format!("/tmp/{}-{}-{}.pprof", self.config.pod_name, timestamp, mode);
@@ -39,7 +39,7 @@ impl Monitor {
             s3::upload_to_s3(&self.s3_client, &dump_file, &self.config.s3_bucket, &s3_key).await;
 
         // Send Slack notification if upload succeeded and not a baseline dump
-        if upload_result.is_ok() && mode != "baseline" {
+        if upload_result.is_ok() && !mode.is_baseline() {
             let notification = slack::SlackNotification {
                 token: self.config.slack_api_token.as_deref(),
                 environment: self.config.environment.as_deref(),
@@ -116,7 +116,7 @@ async fn main() {
     };
 
     if let Err(e) = monitor
-        .create_and_upload_dump(initial_usage, 0, "baseline")
+        .create_and_upload_dump(initial_usage, 0, DumpMode::Baseline)
         .await
     {
         error!(error = %e, "Failed to create/upload baseline dump");
@@ -207,7 +207,7 @@ async fn main() {
                     .create_and_upload_dump(
                         usage,
                         detection.baseline_for_notification,
-                        detection.mode.as_str(),
+                        detection.mode.into(),
                     )
                     .await
                 {
@@ -221,7 +221,7 @@ async fn main() {
                     }
                     Err(e) => {
                         error!(
-                            mode = detection.mode.as_str(),
+                            mode = %DumpMode::from(detection.mode),
                             error = %e,
                             "Failed to create or upload heap dump"
                         );
