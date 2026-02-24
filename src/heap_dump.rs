@@ -1,11 +1,12 @@
 use std::os::unix::fs::FileTypeExt;
+use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{error, info};
 
 /// Connect to the jemalloc profiling Unix socket, send `dump\n`, and write the
 /// response to `dump_file`. Returns the path on success.
-pub async fn create_heap_dump(binary_name: &str, dump_file: &str) -> Result<String, String> {
+pub async fn create_heap_dump(binary_name: &str, dump_file: &Path) -> Result<(), String> {
     let sock_path = format!("/tmp/heap_dump_{}.sock", binary_name);
 
     // Check socket exists
@@ -47,18 +48,18 @@ pub async fn create_heap_dump(binary_name: &str, dump_file: &str) -> Result<Stri
 
     tokio::fs::write(dump_file, &data)
         .await
-        .map_err(|e| format!("ERROR: Failed to write dump file {}: {}", dump_file, e))?;
+        .map_err(|e| format!("ERROR: Failed to write dump file {:?}: {}", dump_file, e))?;
 
-    info!(dump_file, bytes = data.len(), "Heap dump created");
+    info!(?dump_file, bytes = data.len(), "Heap dump created");
 
-    Ok(dump_file.to_string())
+    Ok(())
 }
 
 /// Remove a dump file after upload.
-pub async fn cleanup_dump_file(path: &str) {
+pub async fn cleanup_dump_file(path: &Path) {
     if let Err(e) = tokio::fs::remove_file(path).await {
-        error!(path, error = %e, "Failed to clean up dump file");
+        error!(?path, error = %e, "Failed to clean up dump file");
     } else {
-        info!(path, "Cleaned up local dump file");
+        info!(?path, "Cleaned up local dump file");
     }
 }

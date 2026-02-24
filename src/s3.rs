@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::Client;
 use tracing::{error, info};
@@ -8,7 +10,7 @@ const RETRY_DELAY_SECS: u64 = 5;
 /// Upload a local file to S3. Retries up to 3 times with 5s delay.
 pub async fn upload_to_s3(
     client: &Client,
-    local_file: &str,
+    local_file: &Path,
     bucket: &str,
     key: &str,
 ) -> Result<(), String> {
@@ -41,13 +43,13 @@ pub async fn upload_to_s3(
 
 async fn try_upload(
     client: &Client,
-    local_file: &str,
+    local_file: &Path,
     bucket: &str,
     key: &str,
 ) -> Result<(), String> {
     let body = ByteStream::from_path(local_file)
         .await
-        .map_err(|e| format!("Failed to read file {}: {}", local_file, e))?;
+        .map_err(|e| format!("Failed to read file {:?}: {}", local_file, e))?;
 
     client
         .put_object()

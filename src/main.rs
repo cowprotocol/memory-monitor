@@ -6,6 +6,8 @@ mod process;
 mod s3;
 mod slack;
 
+use std::path::PathBuf;
+
 use config::Config;
 use detection::{DetectionMode, Detector, DumpMode};
 use history::History;
@@ -29,8 +31,8 @@ impl Monitor {
         mode: DumpMode,
     ) -> Result<(), String> {
         let timestamp = chrono::Utc::now().format("%Y-%m-%d-%H-%M-%S");
-        let dump_file = format!("/tmp/{}-{}-{}.pprof", self.config.pod_name, timestamp, mode);
         let filename = format!("{}-{}-{}.pprof", self.config.pod_name, timestamp, mode);
+        let dump_file = PathBuf::from(format!("/tmp/{}", filename));
         let s3_key = format!("{}{}", self.config.s3_path_prefix, filename);
 
         heap_dump::create_heap_dump(&self.config.binary_name, &dump_file).await?;
