@@ -54,8 +54,8 @@ impl Monitor {
                 s3_key: &s3_key,
                 mode,
             };
-            if let Err(e) = slack::send_slack_notification(&notification).await {
-                error!(error = %e, "Failed to send Slack notification");
+            if let Err(err) = slack::send_slack_notification(&notification).await {
+                error!(?err, "Failed to send Slack notification");
             }
         }
 
@@ -76,14 +76,14 @@ async fn main() {
         .init();
 
     let config = match Config::from_env() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("{}", e);
+        Ok(config) => config,
+        Err(err) => {
+            error!(?err, "error loading config");
             std::process::exit(1);
         }
     };
 
-    info!("{}", config);
+    info!(?config, "loaded config");
 
     let check_interval = std::time::Duration::from_secs(config.check_interval);
     let initial_delay = std::time::Duration::from_secs(config.initial_delay);
@@ -117,16 +117,15 @@ async fn main() {
         }
     };
 
-    if let Err(e) = monitor
+    if let Err(err) = monitor
         .create_and_upload_dump(initial_usage, 0, DumpMode::Baseline)
         .await
     {
-        error!(error = %e, "Failed to create/upload baseline dump");
+        error!(?err, "Failed to create/upload baseline dump");
         std::process::exit(1);
     }
     info!("Baseline dump uploaded successfully");
 
-    // Sleep to allow memory to settle after dump
     info!("Sleeping for 60s to allow memory to settle after baseline dump...");
     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
 
@@ -221,10 +220,10 @@ async fn main() {
                             "Baseline updated"
                         );
                     }
-                    Err(e) => {
+                    Err(err) => {
                         error!(
                             mode = %DumpMode::from(detection.mode),
-                            error = %e,
+                            ?err,
                             "Failed to create or upload heap dump"
                         );
                     }

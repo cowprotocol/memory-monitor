@@ -57,8 +57,8 @@ pub async fn create_heap_dump(binary_name: &str, dump_file: &Path) -> Result<(),
 
 /// Remove a dump file after upload.
 pub async fn cleanup_dump_file(path: &Path) {
-    if let Err(e) = tokio::fs::remove_file(path).await {
-        error!(?path, error = %e, "Failed to clean up dump file");
+    if let Err(err) = tokio::fs::remove_file(path).await {
+        error!(?path, ?err, "Failed to clean up dump file");
     } else {
         info!(?path, "Cleaned up local dump file");
     }

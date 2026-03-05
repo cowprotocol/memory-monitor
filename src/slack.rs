@@ -135,7 +135,7 @@ pub async fn send_slack_notification(params: &SlackNotification<'_>) -> Result<(
             .get("error")
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown error");
-        error!(error = err, "Slack API error");
+        error!(?err, "Slack API error");
         Err(format!("Slack API error: {}", err))
     }
 }

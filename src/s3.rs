@@ -25,8 +25,8 @@ pub async fn upload_to_s3(
                 info!(s3_url, "Successfully uploaded to S3");
                 return Ok(());
             }
-            Err(e) => {
-                error!(attempt, error = %e, "Upload attempt failed");
+            Err(err) => {
+                error!(attempt, ?err, "Upload attempt failed");
                 if attempt < MAX_ATTEMPTS {
                     info!(delay_secs = RETRY_DELAY_SECS, "Retrying...");
                     tokio::time::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECS)).await;
