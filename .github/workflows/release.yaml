@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag and bump version
+        id: version
+        run: |
+          latest_tag=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$latest_tag" ]; then
+            new_tag="v0.1.0"
+          else
+            # Bump minor version
+            major=$(echo "$latest_tag" | sed 's/v//' | cut -d. -f1)
+            minor=$(echo "$latest_tag" | sed 's/v//' | cut -d. -f2)
+            patch=$(echo "$latest_tag" | sed 's/v//' | cut -d. -f3)
+            new_minor=$((minor + 1))
+            new_tag="v${major}.${new_minor}.0"
+          fi
+          echo "tag=$new_tag" >> "$GITHUB_OUTPUT"
+          echo "New version: $new_tag"
+
+      - name: Create and push tag
+        run: |
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
