@@ -1,14 +1,15 @@
 use bytesize::ByteSize;
 use std::env;
 use std::fmt;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Config {
     pub binary_name: String,
-    pub check_interval: u64,
+    pub check_interval: Duration,
     pub memory_change_threshold: u64,
-    pub initial_delay: u64,
-    pub dump_cooldown: u64,
+    pub initial_delay: Duration,
+    pub dump_cooldown: Duration,
     pub s3_bucket: String,
     pub s3_path_prefix: String,
     pub pod_name: String,
@@ -22,11 +23,11 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self, String> {
         let binary_name = required_env("BINARY_NAME")?;
-        let check_interval = required_env_parsed::<u64>("CHECK_INTERVAL")?;
+        let check_interval = required_env_duration("CHECK_INTERVAL")?;
         let memory_change_threshold =
             required_env_parsed::<ByteSize>("MEMORY_CHANGE_THRESHOLD")?.as_u64();
-        let initial_delay = required_env_parsed::<u64>("INITIAL_DELAY")?;
-        let dump_cooldown = required_env_parsed::<u64>("DUMP_COOLDOWN")?;
+        let initial_delay = required_env_duration("INITIAL_DELAY")?;
+        let dump_cooldown = required_env_duration("DUMP_COOLDOWN")?;
         let s3_bucket = required_env("S3_BUCKET")?;
         let s3_path_prefix = required_env("S3_PATH_PREFIX")?;
         let pod_name = required_env("POD_NAME")?;
@@ -53,8 +54,8 @@ impl Config {
         })
     }
 
-    pub fn spike_cooldown(&self) -> u64 {
-        self.history_window_size as u64 * self.check_interval
+    pub fn spike_cooldown(&self) -> Duration {
+        self.check_interval * self.history_window_size as u32
     }
 }
 
@@ -64,23 +65,23 @@ impl fmt::Display for Config {
             f,
             "Memory monitor started for process: {}; \
              Monitoring process RssAnon (anonymous memory: heap/stack) via /proc; \
-             Check interval: {}s; \
+             Check interval: {}; \
              Detection mode: Dual (spike + slow leak); \
              Spike threshold: {}x P95; \
-             Memory change threshold: P50 + {} bytes; \
+             Memory change threshold: P50 + {}; \
              History window: {} samples; \
-             Initial delay before first dump: {}s; \
-             Dump cooldown: {}s; \
-             Spike cooldown: {}s (history window refresh); \
+             Initial delay before first dump: {}; \
+             Dump cooldown: {}; \
+             Spike cooldown: {} (history window refresh); \
              S3 destination: s3://{}/{}",
             self.binary_name,
-            self.check_interval,
+            humantime::format_duration(self.check_interval),
             self.spike_multiplier,
-            self.memory_change_threshold,
+            ByteSize(self.memory_change_threshold),
             self.history_window_size,
-            self.initial_delay,
-            self.dump_cooldown,
-            self.spike_cooldown(),
+            humantime::format_duration(self.initial_delay),
+            humantime::format_duration(self.dump_cooldown),
+            humantime::format_duration(self.spike_cooldown()),
             self.s3_bucket,
             self.s3_path_prefix,
         )
@@ -98,6 +99,12 @@ where
     let val = required_env(key)?;
     val.parse::<T>()
         .map_err(|e| format!("ERROR: {} has invalid value '{}': {}", key, val, e))
+}
+
+fn required_env_duration(key: &str) -> Result<Duration, String> {
+    let val = required_env(key)?;
+    humantime::parse_duration(&val)
+        .map_err(|e| format!("ERROR: {} has invalid duration '{}': {}", key, val, e))
 }
 
 fn optional_env(key: &str) -> Option<String> {
@@ -126,10 +133,10 @@ mod tests {
 
     fn set_required_env_vars() {
         env::set_var("BINARY_NAME", "driver");
-        env::set_var("CHECK_INTERVAL", "10");
+        env::set_var("CHECK_INTERVAL", "10s");
         env::set_var("MEMORY_CHANGE_THRESHOLD", "200MB");
-        env::set_var("INITIAL_DELAY", "3600");
-        env::set_var("DUMP_COOLDOWN", "60");
+        env::set_var("INITIAL_DELAY", "1h");
+        env::set_var("DUMP_COOLDOWN", "1m");
         env::set_var("S3_BUCKET", "my-bucket");
         env::set_var("S3_PATH_PREFIX", "memory-dumps/");
         env::set_var("POD_NAME", "test-pod-abc123");
@@ -163,10 +170,10 @@ mod tests {
 
         let config = Config::from_env().unwrap();
         assert_eq!(config.binary_name, "driver");
-        assert_eq!(config.check_interval, 10);
+        assert_eq!(config.check_interval, Duration::from_secs(10));
         assert_eq!(config.memory_change_threshold, 200_000_000);
-        assert_eq!(config.initial_delay, 3600);
-        assert_eq!(config.dump_cooldown, 60);
+        assert_eq!(config.initial_delay, Duration::from_secs(3600));
+        assert_eq!(config.dump_cooldown, Duration::from_secs(60));
         assert_eq!(config.s3_bucket, "my-bucket");
         assert_eq!(config.s3_path_prefix, "memory-dumps/");
         assert_eq!(config.pod_name, "test-pod-abc123");
@@ -212,15 +219,15 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_numeric_env() {
+    fn test_invalid_duration_env() {
         let _lock = ENV_LOCK.lock().unwrap();
         clear_all_env_vars();
         set_required_env_vars();
-        env::set_var("CHECK_INTERVAL", "not_a_number");
+        env::set_var("CHECK_INTERVAL", "not_a_duration");
 
         let err = Config::from_env().unwrap_err();
         assert!(
-            err.contains("CHECK_INTERVAL") && err.contains("invalid"),
+            err.contains("CHECK_INTERVAL") && err.contains("invalid duration"),
             "got: {}",
             err
         );
@@ -235,8 +242,8 @@ mod tests {
         set_required_env_vars();
 
         let config = Config::from_env().unwrap();
-        // 60 * 10 = 600
-        assert_eq!(config.spike_cooldown(), 600);
+        // 60 * 10s = 600s
+        assert_eq!(config.spike_cooldown(), Duration::from_secs(600));
 
         clear_all_env_vars();
     }

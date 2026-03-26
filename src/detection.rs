@@ -1,5 +1,5 @@
 use std::fmt;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// The type of memory anomaly detected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,16 +54,16 @@ pub struct Detector {
     pub baseline_p50: u64,
     last_dump_time: Option<Instant>,
     last_spike_dump_time: Option<Instant>,
-    dump_cooldown_secs: u64,
-    spike_cooldown_secs: u64,
+    dump_cooldown: Duration,
+    spike_cooldown: Duration,
     spike_multiplier: u64,
     memory_change_threshold: u64,
 }
 
 impl Detector {
     pub fn new(
-        dump_cooldown_secs: u64,
-        spike_cooldown_secs: u64,
+        dump_cooldown: Duration,
+        spike_cooldown: Duration,
         spike_multiplier: u64,
         memory_change_threshold: u64,
     ) -> Self {
@@ -71,8 +71,8 @@ impl Detector {
             baseline_p50: 0,
             last_dump_time: None,
             last_spike_dump_time: None,
-            dump_cooldown_secs,
-            spike_cooldown_secs,
+            dump_cooldown,
+            spike_cooldown,
             spike_multiplier,
             memory_change_threshold,
         }
@@ -111,14 +111,14 @@ impl Detector {
 
     /// Whether the cooldown for the given mode has elapsed.
     pub fn cooldown_passed(&self, mode: DetectionMode) -> bool {
-        let (last_time, cooldown_secs) = match mode {
-            DetectionMode::Spike => (self.last_spike_dump_time, self.spike_cooldown_secs),
-            DetectionMode::SlowLeak => (self.last_dump_time, self.dump_cooldown_secs),
+        let (last_time, cooldown) = match mode {
+            DetectionMode::Spike => (self.last_spike_dump_time, self.spike_cooldown),
+            DetectionMode::SlowLeak => (self.last_dump_time, self.dump_cooldown),
         };
 
         match last_time {
             None => true,
-            Some(t) => t.elapsed().as_secs() >= cooldown_secs,
+            Some(t) => t.elapsed() >= cooldown,
         }
     }
 
@@ -139,10 +139,10 @@ mod tests {
 
     fn make_detector() -> Detector {
         Detector::new(
-            60,       // dump_cooldown_secs
-            600,      // spike_cooldown_secs
-            3,        // spike_multiplier
-            200 * MB, // memory_change_threshold
+            Duration::from_secs(60),  // dump_cooldown
+            Duration::from_secs(600), // spike_cooldown
+            3,                        // spike_multiplier
+            200 * MB,                 // memory_change_threshold
         )
     }
 

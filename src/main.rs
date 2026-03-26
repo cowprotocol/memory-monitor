@@ -82,10 +82,10 @@ async fn main() {
 
     info!(?config, "loaded config");
 
-    let check_interval = std::time::Duration::from_secs(config.check_interval);
-    let initial_delay = std::time::Duration::from_secs(config.initial_delay);
+    let check_interval = config.check_interval;
+    let initial_delay = config.initial_delay;
     let history_window_size = config.history_window_size;
-    let spike_cooldown_secs = config.spike_cooldown();
+    let spike_cooldown = config.spike_cooldown();
 
     // Initialize S3 client (uses pod IAM role automatically)
     let aws_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
@@ -95,7 +95,7 @@ async fn main() {
 
     // Wait for initial delay before starting monitoring
     info!(
-        delay_secs = initial_delay.as_secs(),
+        delay = %humantime::format_duration(initial_delay),
         "Sleeping before starting monitoring..."
     );
     tokio::time::sleep(initial_delay).await;
@@ -129,7 +129,7 @@ async fn main() {
     let mut history = History::new(history_window_size);
     let mut detector = Detector::new(
         monitor.config.dump_cooldown,
-        spike_cooldown_secs,
+        spike_cooldown,
         monitor.config.spike_multiplier,
         monitor.config.memory_change_threshold,
     );
