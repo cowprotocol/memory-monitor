@@ -1,6 +1,6 @@
-use bytesize::ByteSize;
 use crate::detection::DumpMode;
 use crate::s3::s3_console_url;
+use bytesize::ByteSize;
 use serde::Serialize;
 use tracing::{error, info, warn};
 
@@ -158,5 +158,4 @@ mod tests {
         assert_eq!(mode_display(DumpMode::SlowLeak), "\u{1f40c}Slow Leak");
         assert_eq!(mode_display(DumpMode::Baseline), "Baseline");
     }
-
 }
