@@ -38,6 +38,14 @@ fn mode_display(mode: DumpMode) -> &'static str {
     }
 }
 
+fn mode_color(mode: DumpMode) -> &'static str {
+    match mode {
+        DumpMode::Spike => "danger",
+        DumpMode::SlowLeak => "warning",
+        DumpMode::Baseline => "good",
+    }
+}
+
 /// Parameters for sending a Slack notification.
 pub struct SlackNotification<'a> {
     pub token: Option<&'a str>,
@@ -97,7 +105,7 @@ pub async fn send_slack_notification(params: &SlackNotification<'_>) -> Result<(
     let payload = SlackMessage {
         channel: channel.to_string(),
         attachments: vec![SlackAttachment {
-            color: "warning".to_string(),
+            color: mode_color(params.mode).to_string(),
             text: message,
         }],
     };
