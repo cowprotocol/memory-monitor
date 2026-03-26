@@ -138,16 +138,13 @@ async fn main() {
     );
 
     loop {
-        let usage = match process::get_process_memory(&monitor.config.binary_name) {
-            Some(u) => u,
-            None => {
-                warn!(
-                    binary_name = monitor.config.binary_name,
-                    "Process not found or unable to read process memory. Will retry..."
-                );
-                tokio::time::sleep(check_interval).await;
-                continue;
-            }
+        let Some(usage) = process::get_process_memory(&monitor.config.binary_name) else {
+            warn!(
+                binary_name = monitor.config.binary_name,
+                "Process not found or unable to read process memory. Will retry..."
+            );
+            tokio::time::sleep(check_interval).await;
+            continue;
         };
 
         history.push(usage);
