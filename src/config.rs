@@ -1,3 +1,4 @@
+use bytesize::ByteSize;
 use std::env;
 use std::fmt;
 
@@ -22,7 +23,8 @@ impl Config {
     pub fn from_env() -> Result<Self, String> {
         let binary_name = required_env("BINARY_NAME")?;
         let check_interval = required_env_parsed::<u64>("CHECK_INTERVAL")?;
-        let memory_change_threshold = required_env_parsed::<u64>("MEMORY_CHANGE_THRESHOLD")?;
+        let memory_change_threshold =
+            required_env_parsed::<ByteSize>("MEMORY_CHANGE_THRESHOLD")?.as_u64();
         let initial_delay = required_env_parsed::<u64>("INITIAL_DELAY")?;
         let dump_cooldown = required_env_parsed::<u64>("DUMP_COOLDOWN")?;
         let s3_bucket = required_env("S3_BUCKET")?;
@@ -125,7 +127,7 @@ mod tests {
     fn set_required_env_vars() {
         env::set_var("BINARY_NAME", "driver");
         env::set_var("CHECK_INTERVAL", "10");
-        env::set_var("MEMORY_CHANGE_THRESHOLD", "209715200");
+        env::set_var("MEMORY_CHANGE_THRESHOLD", "200MB");
         env::set_var("INITIAL_DELAY", "3600");
         env::set_var("DUMP_COOLDOWN", "60");
         env::set_var("S3_BUCKET", "my-bucket");
@@ -162,7 +164,7 @@ mod tests {
         let config = Config::from_env().unwrap();
         assert_eq!(config.binary_name, "driver");
         assert_eq!(config.check_interval, 10);
-        assert_eq!(config.memory_change_threshold, 209715200);
+        assert_eq!(config.memory_change_threshold, 200_000_000);
         assert_eq!(config.initial_delay, 3600);
         assert_eq!(config.dump_cooldown, 60);
         assert_eq!(config.s3_bucket, "my-bucket");
