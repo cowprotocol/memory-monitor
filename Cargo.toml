@@ -8,6 +8,7 @@ description = "Kubernetes sidecar for monitoring process memory, detecting leaks
 [dependencies]
 aws-config = "1"
 aws-sdk-s3 = "1"
+bytesize = "2.3.1"
 chrono = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 serde = { version = "1", features = ["derive"] }

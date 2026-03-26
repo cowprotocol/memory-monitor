@@ -1,3 +1,4 @@
+use bytesize::ByteSize;
 use crate::detection::DumpMode;
 use crate::s3::s3_console_url;
 use serde::Serialize;
@@ -13,10 +14,6 @@ struct SlackMessage {
 struct SlackAttachment {
     color: String,
     text: String,
-}
-
-fn bytes_to_mb(bytes: u64) -> u64 {
-    bytes / 1024 / 1024
 }
 
 fn select_channel(environment: &str) -> &'static str {
@@ -75,25 +72,25 @@ pub async fn send_slack_notification(params: &SlackNotification<'_>) -> Result<(
 
     let channel = select_channel(environment);
     let console_url = s3_console_url(params.bucket, params.s3_key);
-    let current_mb = bytes_to_mb(params.current_memory);
-    let baseline_mb = bytes_to_mb(params.baseline_memory);
-    let increase_mb = current_mb.saturating_sub(baseline_mb);
+    let current = ByteSize(params.current_memory);
+    let baseline = ByteSize(params.baseline_memory);
+    let increase = ByteSize(params.current_memory.saturating_sub(params.baseline_memory));
     let mode_str = mode_display(params.mode);
 
     let message = format!(
         "*Memory increase detected in {}-{}-{}*\n\
          Pod: `{}`\n\
          Detection: *{}*\n\
-         Memory increased by *{} MB* ({} MB \u{2192} {} MB)\n\
+         Memory increased by *{}* ({} \u{2192} {})\n\
          Heap dump uploaded: {}",
         network,
         params.binary_name,
         environment,
         params.pod_name,
         mode_str,
-        increase_mb,
-        baseline_mb,
-        current_mb,
+        increase,
+        baseline,
+        current,
         console_url,
     );
 
@@ -154,10 +151,4 @@ mod tests {
         assert_eq!(mode_display(DumpMode::Baseline), "Baseline");
     }
 
-    #[test]
-    fn test_bytes_to_mb() {
-        assert_eq!(bytes_to_mb(1024 * 1024), 1);
-        assert_eq!(bytes_to_mb(500 * 1024 * 1024), 500);
-        assert_eq!(bytes_to_mb(0), 0);
-    }
 }

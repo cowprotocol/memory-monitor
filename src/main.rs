@@ -8,14 +8,11 @@ mod slack;
 
 use std::path::PathBuf;
 
+use bytesize::ByteSize;
 use config::Config;
 use detection::{DetectionMode, Detector, DumpMode};
 use history::History;
 use tracing::{error, info, warn};
-
-fn bytes_to_mb(bytes: u64) -> u64 {
-    bytes / 1024 / 1024
-}
 
 struct Monitor {
     config: Config,
@@ -153,7 +150,7 @@ async fn main() {
             info!(
                 samples = history.len(),
                 window = history_window_size,
-                current_mb = bytes_to_mb(usage),
+                current = %ByteSize(usage),
                 "Building history..."
             );
             tokio::time::sleep(check_interval).await;
@@ -167,8 +164,8 @@ async fn main() {
         if detector.baseline_p50 == 0 {
             detector.baseline_p50 = current_p50;
             info!(
-                baseline_p50_mb = bytes_to_mb(detector.baseline_p50),
-                current_p95_mb = bytes_to_mb(current_p95),
+                baseline_p50 = %ByteSize(detector.baseline_p50),
+                current_p95 = %ByteSize(current_p95),
                 "Baseline established"
             );
             tokio::time::sleep(check_interval).await;
@@ -181,20 +178,20 @@ async fn main() {
                 DetectionMode::Spike => {
                     let threshold = current_p95 * monitor.config.spike_multiplier;
                     info!(
-                        usage_mb = bytes_to_mb(usage),
+                        usage = %ByteSize(usage),
                         multiplier = monitor.config.spike_multiplier,
-                        p95_mb = bytes_to_mb(current_p95),
-                        threshold_mb = bytes_to_mb(threshold),
+                        p95 = %ByteSize(current_p95),
+                        threshold = %ByteSize(threshold),
                         "SPIKE DETECTED"
                     );
                 }
                 DetectionMode::SlowLeak => {
                     let threshold = detector.baseline_p50 + monitor.config.memory_change_threshold;
                     info!(
-                        p50_mb = bytes_to_mb(current_p50),
-                        baseline_p50_mb = bytes_to_mb(detector.baseline_p50),
-                        threshold_mb = bytes_to_mb(monitor.config.memory_change_threshold),
-                        limit_mb = bytes_to_mb(threshold),
+                        p50 = %ByteSize(current_p50),
+                        baseline_p50 = %ByteSize(detector.baseline_p50),
+                        threshold = %ByteSize(monitor.config.memory_change_threshold),
+                        limit = %ByteSize(threshold),
                         "SLOW LEAK DETECTED"
                     );
                 }
@@ -212,8 +209,8 @@ async fn main() {
                     Ok(()) => {
                         detector.record_dump(detection.mode, current_p50);
                         info!(
-                            baseline_p50_mb = bytes_to_mb(detector.baseline_p50),
-                            current_p95_mb = bytes_to_mb(current_p95),
+                            baseline_p50 = %ByteSize(detector.baseline_p50),
+                            current_p95 = %ByteSize(current_p95),
                             "Baseline updated"
                         );
                     }
