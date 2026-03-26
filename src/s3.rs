@@ -7,6 +7,13 @@ use tracing::{error, info};
 const MAX_ATTEMPTS: u32 = 3;
 const RETRY_DELAY_SECS: u64 = 5;
 
+pub fn s3_console_url(bucket: &str, key: &str) -> String {
+    format!(
+        "https://s3.console.aws.amazon.com/s3/object/{}?prefix={}",
+        bucket, key
+    )
+}
+
 /// Upload a local file to S3. Retries up to 3 times with 5s delay.
 pub async fn upload_to_s3(
     client: &Client,
@@ -22,7 +29,8 @@ pub async fn upload_to_s3(
 
         match try_upload(client, local_file, bucket, key).await {
             Ok(()) => {
-                info!(s3_url, "Successfully uploaded to S3");
+                let console_url = s3_console_url(bucket, key);
+                info!(s3_url, console_url, "Successfully uploaded to S3");
                 return Ok(());
             }
             Err(err) => {
@@ -61,4 +69,18 @@ async fn try_upload(
         .map_err(|e| format!("S3 PutObject failed: {}", e))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_s3_console_url() {
+        let url = s3_console_url("my-bucket", "path/to/file.pprof");
+        assert_eq!(
+            url,
+            "https://s3.console.aws.amazon.com/s3/object/my-bucket?prefix=path/to/file.pprof"
+        );
+    }
 }

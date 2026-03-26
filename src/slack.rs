@@ -1,4 +1,5 @@
 use crate::detection::DumpMode;
+use crate::s3::s3_console_url;
 use serde::Serialize;
 use tracing::{error, info, warn};
 
@@ -30,13 +31,6 @@ fn select_channel(environment: &str) -> &'static str {
             "alerts-temp"
         }
     }
-}
-
-fn s3_console_url(bucket: &str, key: &str) -> String {
-    format!(
-        "https://s3.console.aws.amazon.com/s3/object/{}?prefix={}",
-        bucket, key
-    )
 }
 
 fn mode_display(mode: DumpMode) -> &'static str {
@@ -151,15 +145,6 @@ mod tests {
         assert_eq!(select_channel("shadow"), "alerts-barn");
         assert_eq!(select_channel("dev"), "alerts-temp");
         assert_eq!(select_channel(""), "alerts-temp");
-    }
-
-    #[test]
-    fn test_s3_console_url() {
-        let url = s3_console_url("my-bucket", "path/to/file.pprof");
-        assert_eq!(
-            url,
-            "https://s3.console.aws.amazon.com/s3/object/my-bucket?prefix=path/to/file.pprof"
-        );
     }
 
     #[test]
