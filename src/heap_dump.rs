@@ -1,8 +1,11 @@
-use std::os::unix::fs::FileTypeExt;
-use std::path::Path;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UnixStream;
-use tracing::{error, info};
+use {
+    std::{os::unix::fs::FileTypeExt, path::Path},
+    tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::UnixStream,
+    },
+    tracing::{error, info},
+};
 
 /// Connect to the jemalloc profiling Unix socket, send `dump\n`, and write the
 /// response to `dump_file`. Returns the path on success.

@@ -1,8 +1,9 @@
-use crate::detection::DumpMode;
-use crate::s3::s3_console_url;
-use bytesize::ByteSize;
-use serde::Serialize;
-use tracing::{error, info, warn};
+use {
+    crate::{detection::DumpReason, s3::s3_console_url},
+    bytesize::ByteSize,
+    serde::Serialize,
+    tracing::{error, info, warn},
+};
 
 #[derive(Serialize)]
 struct SlackMessage {
@@ -30,19 +31,19 @@ fn select_channel(environment: &str) -> &'static str {
     }
 }
 
-fn mode_display(mode: DumpMode) -> &'static str {
+fn mode_display(mode: DumpReason) -> &'static str {
     match mode {
-        DumpMode::Spike => "\u{1f6a8}Spike",
-        DumpMode::SlowLeak => "\u{1f40c}Slow Leak",
-        DumpMode::Baseline => "Baseline",
+        DumpReason::Spike => "\u{1f6a8}Spike",
+        DumpReason::SlowLeak => "\u{1f40c}Slow Leak",
+        DumpReason::Baseline => "Baseline",
     }
 }
 
-fn mode_color(mode: DumpMode) -> &'static str {
+fn mode_color(mode: DumpReason) -> &'static str {
     match mode {
-        DumpMode::Spike => "danger",
-        DumpMode::SlowLeak => "warning",
-        DumpMode::Baseline => "good",
+        DumpReason::Spike => "danger",
+        DumpReason::SlowLeak => "warning",
+        DumpReason::Baseline => "good",
     }
 }
 
@@ -57,7 +58,7 @@ pub struct SlackNotification<'a> {
     pub baseline_memory: u64,
     pub bucket: &'a str,
     pub s3_key: &'a str,
-    pub mode: DumpMode,
+    pub mode: DumpReason,
 }
 
 /// Send a Slack notification about a memory anomaly.
@@ -68,13 +69,21 @@ pub async fn send_slack_notification(params: &SlackNotification<'_>) -> Result<(
         _ => return Ok(()),
     };
 
-    let (environment, network) = match (params.environment, params.network) {
-        (Some(e), Some(n)) => (e, n),
-        _ => {
-            warn!("SLACK_API_TOKEN set but missing ENVIRONMENT or NETWORK env vars");
-            return Err(
-                "SLACK_API_TOKEN set but missing ENVIRONMENT or NETWORK env vars".to_string(),
-            );
+    let environment = match params.environment {
+        Some(e) => e,
+        None => {
+            let msg = "SLACK_API_TOKEN is set but ENVIRONMENT env var is missing";
+            warn!(msg);
+            return Err(msg.to_string());
+        }
+    };
+
+    let network = match params.network {
+        Some(n) => n,
+        None => {
+            let msg = "SLACK_API_TOKEN is set but NETWORK env var is missing";
+            warn!(msg);
+            return Err(msg.to_string());
         }
     };
 
@@ -86,11 +95,8 @@ pub async fn send_slack_notification(params: &SlackNotification<'_>) -> Result<(
     let mode_str = mode_display(params.mode);
 
     let message = format!(
-        "*Memory increase detected in {}-{}-{}*\n\
-         Pod: `{}`\n\
-         Detection: *{}*\n\
-         Memory increased by *{}* ({} \u{2192} {})\n\
-         Heap dump uploaded: {}",
+        "*Memory increase detected in {}-{}-{}*\nPod: `{}`\nDetection: *{}*\nMemory increased by \
+         *{}* ({} \u{2192} {})\nHeap dump uploaded: {}",
         network,
         params.binary_name,
         environment,
@@ -154,8 +160,8 @@ mod tests {
 
     #[test]
     fn test_mode_display() {
-        assert_eq!(mode_display(DumpMode::Spike), "\u{1f6a8}Spike");
-        assert_eq!(mode_display(DumpMode::SlowLeak), "\u{1f40c}Slow Leak");
-        assert_eq!(mode_display(DumpMode::Baseline), "Baseline");
+        assert_eq!(mode_display(DumpReason::Spike), "\u{1f6a8}Spike");
+        assert_eq!(mode_display(DumpReason::SlowLeak), "\u{1f40c}Slow Leak");
+        assert_eq!(mode_display(DumpReason::Baseline), "Baseline");
     }
 }

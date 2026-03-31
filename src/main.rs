@@ -6,13 +6,14 @@ mod process;
 mod s3;
 mod slack;
 
-use std::path::PathBuf;
-
-use bytesize::ByteSize;
-use config::Config;
-use detection::{DetectionMode, Detector, DumpMode};
-use history::History;
-use tracing::{error, info, warn};
+use {
+    bytesize::ByteSize,
+    config::Config,
+    detection::{DetectionMode, Detector, DumpReason},
+    history::History,
+    std::path::PathBuf,
+    tracing::{error, info, warn},
+};
 
 struct Monitor {
     config: Config,
@@ -20,12 +21,13 @@ struct Monitor {
 }
 
 impl Monitor {
-    /// Create a heap dump, upload it to S3, and optionally send a Slack notification.
+    /// Create a heap dump, upload it to S3, and optionally send a Slack
+    /// notification.
     async fn create_and_upload_dump(
         &self,
         current_memory: u64,
         baseline_memory: u64,
-        mode: DumpMode,
+        mode: DumpReason,
     ) -> Result<(), String> {
         let timestamp = chrono::Utc::now().format("%Y-%m-%d-%H-%M-%S");
         let filename = format!("{}-{}-{}.pprof", self.config.pod_name, timestamp, mode);
@@ -88,7 +90,10 @@ async fn main() {
     let spike_cooldown = config.spike_cooldown();
 
     // Initialize S3 client (uses pod IAM role automatically)
-    let aws_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
+    let aws_config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .retry_config(aws_config::retry::RetryConfig::standard().with_max_attempts(3))
+        .load()
+        .await;
     let s3_client = aws_sdk_s3::Client::new(&aws_config);
 
     let monitor = Monitor { config, s3_client };
@@ -115,7 +120,7 @@ async fn main() {
     };
 
     if let Err(err) = monitor
-        .create_and_upload_dump(initial_usage, 0, DumpMode::Baseline)
+        .create_and_upload_dump(initial_usage, 0, DumpReason::Baseline)
         .await
     {
         error!(?err, "Failed to create/upload baseline dump");
@@ -216,7 +221,7 @@ async fn main() {
                     }
                     Err(err) => {
                         error!(
-                            mode = %DumpMode::from(detection.mode),
+                            mode = %DumpReason::from(detection.mode),
                             ?err,
                             "Failed to create or upload heap dump"
                         );

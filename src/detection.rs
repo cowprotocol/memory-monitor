@@ -1,5 +1,7 @@
-use std::fmt;
-use std::time::{Duration, Instant};
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
 /// The type of memory anomaly detected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,33 +12,33 @@ pub enum DetectionMode {
 
 /// The reason for creating a heap dump (detection + baseline).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DumpMode {
+pub enum DumpReason {
     Baseline,
     Spike,
     SlowLeak,
 }
 
-impl From<DetectionMode> for DumpMode {
+impl From<DetectionMode> for DumpReason {
     fn from(mode: DetectionMode) -> Self {
         match mode {
-            DetectionMode::Spike => DumpMode::Spike,
-            DetectionMode::SlowLeak => DumpMode::SlowLeak,
+            DetectionMode::Spike => DumpReason::Spike,
+            DetectionMode::SlowLeak => DumpReason::SlowLeak,
         }
     }
 }
 
-impl DumpMode {
+impl DumpReason {
     pub fn is_baseline(self) -> bool {
-        self == DumpMode::Baseline
+        self == DumpReason::Baseline
     }
 }
 
-impl fmt::Display for DumpMode {
+impl fmt::Display for DumpReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            DumpMode::Baseline => "baseline",
-            DumpMode::Spike => "spike",
-            DumpMode::SlowLeak => "slow-leak",
+            DumpReason::Baseline => "baseline",
+            DumpReason::Spike => "spike",
+            DumpReason::SlowLeak => "slow-leak",
         })
     }
 }
@@ -45,7 +47,8 @@ impl fmt::Display for DumpMode {
 /// to include in notifications.
 pub struct Detection {
     pub mode: DetectionMode,
-    /// The reference memory value for the notification (P95 for spike, baseline P50 for slow-leak).
+    /// The reference memory value for the notification (P95 for spike, baseline
+    /// P50 for slow-leak).
     pub baseline_for_notification: u64,
 }
 
@@ -122,7 +125,8 @@ impl Detector {
         }
     }
 
-    /// Record that a successful dump was made. Resets baseline P50.
+    /// Record that a successful dump was made. Resets baseline P50 to
+    /// `new_baseline_p50`.
     pub fn record_dump(&mut self, mode: DetectionMode, new_baseline_p50: u64) {
         let now = Instant::now();
         self.last_dump_time = Some(now);

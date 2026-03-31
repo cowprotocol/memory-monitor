@@ -1,5 +1,4 @@
-use std::path::Path;
-use tracing::warn;
+use {std::path::Path, tracing::warn};
 
 /// Find the PID of a process by its binary name, reading `/proc/[0-9]*/comm`.
 fn find_pid(binary_name: &str) -> Option<u32> {
@@ -54,8 +53,9 @@ fn read_rss_anon(pid: u32) -> Option<u64> {
     None
 }
 
-/// Get the anonymous RSS memory usage (in bytes) for the process matching `binary_name`.
-/// Returns `None` if the process is not found or memory cannot be read.
+/// Get the anonymous RSS memory usage (in bytes) for the process matching
+/// `binary_name`. Returns `None` if the process is not found or memory cannot
+/// be read.
 pub fn get_process_memory(binary_name: &str) -> Option<u64> {
     let pid = find_pid(binary_name)?;
     read_rss_anon(pid)

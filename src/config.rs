@@ -1,22 +1,38 @@
-use bytesize::ByteSize;
-use std::env;
-use std::fmt;
-use std::time::Duration;
+use {
+    bytesize::ByteSize,
+    std::{env, fmt, time::Duration},
+};
 
 #[derive(Debug)]
 pub struct Config {
+    /// Name of the target process to monitor (matched against `/proc/*/comm`).
     pub binary_name: String,
+    /// How often to sample process memory.
     pub check_interval: Duration,
+    /// Slow-leak threshold: a dump is triggered when current P50 exceeds
+    /// baseline P50 by more than this amount (in bytes).
     pub memory_change_threshold: u64,
+    /// Time to wait after startup before capturing the baseline heap dump.
     pub initial_delay: Duration,
+    /// Minimum time between consecutive slow-leak heap dumps.
     pub dump_cooldown: Duration,
+    /// S3 bucket for uploading heap dumps.
     pub s3_bucket: String,
+    /// Key prefix inside the S3 bucket (e.g. `memory-dumps/`).
     pub s3_path_prefix: String,
+    /// Kubernetes pod name, used in dump filenames and Slack messages.
     pub pod_name: String,
+    /// Number of memory samples kept in the sliding window (default 60).
     pub history_window_size: usize,
+    /// Spike detection multiplier: a spike is detected when instantaneous
+    /// usage exceeds `P95 * spike_multiplier` (default 3).
     pub spike_multiplier: u64,
+    /// Slack Bot OAuth token. If absent, Slack notifications are skipped.
     pub slack_api_token: Option<String>,
+    /// Deployment environment (e.g. `prod`, `staging`). Used for Slack
+    /// channel routing and alert formatting.
     pub environment: Option<String>,
+    /// Blockchain network name (e.g. `mainnet`). Included in Slack alerts.
     pub network: Option<String>,
 }
 
@@ -63,17 +79,11 @@ impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Memory monitor started for process: {}; \
-             Monitoring process RssAnon (anonymous memory: heap/stack) via /proc; \
-             Check interval: {}; \
-             Detection mode: Dual (spike + slow leak); \
-             Spike threshold: {}x P95; \
-             Memory change threshold: P50 + {}; \
-             History window: {} samples; \
-             Initial delay before first dump: {}; \
-             Dump cooldown: {}; \
-             Spike cooldown: {} (history window refresh); \
-             S3 destination: s3://{}/{}",
+            "Memory monitor started for process: {}; Monitoring process RssAnon (anonymous \
+             memory: heap/stack) via /proc; Check interval: {}; Detection mode: Dual (spike + \
+             slow leak); Spike threshold: {}x P95; Memory change threshold: P50 + {}; History \
+             window: {} samples; Initial delay before first dump: {}; Dump cooldown: {}; Spike \
+             cooldown: {} (history window refresh); S3 destination: s3://{}/{}",
             self.binary_name,
             humantime::format_duration(self.check_interval),
             self.spike_multiplier,
@@ -125,10 +135,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::sync::Mutex;
+    use {super::*, std::sync::Mutex};
 
-    // Environment variable tests need serialization since env vars are process-global.
+    // Environment variable tests need serialization since env vars are
+    // process-global.
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn set_required_env_vars() {
