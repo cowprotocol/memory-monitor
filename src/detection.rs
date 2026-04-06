@@ -5,7 +5,7 @@ use std::{
 
 /// The type of memory anomaly detected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DetectionMode {
+pub enum Anomaly {
     Spike,
     SlowLeak,
 }
@@ -18,11 +18,11 @@ pub enum DumpReason {
     SlowLeak,
 }
 
-impl From<DetectionMode> for DumpReason {
-    fn from(mode: DetectionMode) -> Self {
+impl From<Anomaly> for DumpReason {
+    fn from(mode: Anomaly) -> Self {
         match mode {
-            DetectionMode::Spike => DumpReason::Spike,
-            DetectionMode::SlowLeak => DumpReason::SlowLeak,
+            Anomaly::Spike => DumpReason::Spike,
+            Anomaly::SlowLeak => DumpReason::SlowLeak,
         }
     }
 }
@@ -46,7 +46,7 @@ impl fmt::Display for DumpReason {
 /// Result of a detection check: which mode triggered, and the baseline value
 /// to include in notifications.
 pub struct Detection {
-    pub mode: DetectionMode,
+    pub mode: Anomaly,
     /// The reference memory value for the notification (P95 for spike, baseline
     /// P50 for slow-leak).
     pub baseline_for_notification: u64,
@@ -92,7 +92,7 @@ impl Detector {
         // Spike detection: instantaneous memory > current P95 * multiplier
         if current_usage > current_p95.saturating_mul(self.spike_multiplier) {
             return Some(Detection {
-                mode: DetectionMode::Spike,
+                mode: Anomaly::Spike,
                 baseline_for_notification: current_p95,
             });
         }
@@ -104,7 +104,7 @@ impl Detector {
                 .saturating_add(self.memory_change_threshold)
         {
             return Some(Detection {
-                mode: DetectionMode::SlowLeak,
+                mode: Anomaly::SlowLeak,
                 baseline_for_notification: self.baseline_p50,
             });
         }
@@ -113,10 +113,10 @@ impl Detector {
     }
 
     /// Whether the cooldown for the given mode has elapsed.
-    pub fn cooldown_passed(&self, mode: DetectionMode) -> bool {
+    pub fn cooldown_passed(&self, mode: Anomaly) -> bool {
         let (last_time, cooldown) = match mode {
-            DetectionMode::Spike => (self.last_spike_dump_time, self.spike_cooldown),
-            DetectionMode::SlowLeak => (self.last_dump_time, self.dump_cooldown),
+            Anomaly::Spike => (self.last_spike_dump_time, self.spike_cooldown),
+            Anomaly::SlowLeak => (self.last_dump_time, self.dump_cooldown),
         };
 
         match last_time {
@@ -127,10 +127,10 @@ impl Detector {
 
     /// Record that a successful dump was made. Resets baseline P50 to
     /// `new_baseline_p50`.
-    pub fn record_dump(&mut self, mode: DetectionMode, new_baseline_p50: u64) {
+    pub fn record_dump(&mut self, mode: Anomaly, new_baseline_p50: u64) {
         let now = Instant::now();
         self.last_dump_time = Some(now);
-        if mode == DetectionMode::Spike {
+        if mode == Anomaly::Spike {
             self.last_spike_dump_time = Some(now);
         }
         self.baseline_p50 = new_baseline_p50;
@@ -173,7 +173,7 @@ mod tests {
         let result = det.check(spike_usage, 505 * MB, current_p95);
         assert!(result.is_some());
         let detection = result.unwrap();
-        assert_eq!(detection.mode, DetectionMode::Spike);
+        assert_eq!(detection.mode, Anomaly::Spike);
         assert_eq!(detection.baseline_for_notification, current_p95);
     }
 
@@ -199,7 +199,7 @@ mod tests {
         let result = det.check(510 * MB, new_p50, 520 * MB);
         assert!(result.is_some());
         let detection = result.unwrap();
-        assert_eq!(detection.mode, DetectionMode::SlowLeak);
+        assert_eq!(detection.mode, Anomaly::SlowLeak);
         assert_eq!(detection.baseline_for_notification, 500 * MB);
     }
 
@@ -226,14 +226,14 @@ mod tests {
 
         let result = det.check(spike_usage, new_p50, current_p95);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().mode, DetectionMode::Spike);
+        assert_eq!(result.unwrap().mode, Anomaly::Spike);
     }
 
     #[test]
     fn test_cooldown_initially_passed() {
         let det = make_detector();
-        assert!(det.cooldown_passed(DetectionMode::Spike));
-        assert!(det.cooldown_passed(DetectionMode::SlowLeak));
+        assert!(det.cooldown_passed(Anomaly::Spike));
+        assert!(det.cooldown_passed(Anomaly::SlowLeak));
     }
 
     #[test]
@@ -241,31 +241,31 @@ mod tests {
         let mut det = make_detector();
         det.baseline_p50 = 500 * MB;
 
-        det.record_dump(DetectionMode::SlowLeak, 700 * MB);
+        det.record_dump(Anomaly::SlowLeak, 700 * MB);
         assert_eq!(det.baseline_p50, 700 * MB);
 
         // Cooldown should not have passed yet (just recorded)
-        assert!(!det.cooldown_passed(DetectionMode::SlowLeak));
+        assert!(!det.cooldown_passed(Anomaly::SlowLeak));
     }
 
     #[test]
     fn test_spike_dump_sets_both_timestamps() {
         let mut det = make_detector();
-        det.record_dump(DetectionMode::Spike, 500 * MB);
+        det.record_dump(Anomaly::Spike, 500 * MB);
 
         // Both cooldowns should be active
-        assert!(!det.cooldown_passed(DetectionMode::Spike));
-        assert!(!det.cooldown_passed(DetectionMode::SlowLeak));
+        assert!(!det.cooldown_passed(Anomaly::Spike));
+        assert!(!det.cooldown_passed(Anomaly::SlowLeak));
     }
 
     #[test]
     fn test_slow_leak_dump_does_not_set_spike_timestamp() {
         let mut det = make_detector();
-        det.record_dump(DetectionMode::SlowLeak, 500 * MB);
+        det.record_dump(Anomaly::SlowLeak, 500 * MB);
 
         // Spike cooldown should still be passed (no spike recorded)
-        assert!(det.cooldown_passed(DetectionMode::Spike));
+        assert!(det.cooldown_passed(Anomaly::Spike));
         // Slow-leak cooldown should not have passed
-        assert!(!det.cooldown_passed(DetectionMode::SlowLeak));
+        assert!(!det.cooldown_passed(Anomaly::SlowLeak));
     }
 }

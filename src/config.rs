@@ -3,7 +3,6 @@ use {
     std::{env, fmt, time::Duration},
 };
 
-#[derive(Debug)]
 pub struct Config {
     /// Name of the target process to monitor (matched against `/proc/*/comm`).
     pub binary_name: String,
@@ -34,6 +33,29 @@ pub struct Config {
     pub environment: Option<String>,
     /// Blockchain network name (e.g. `mainnet`). Included in Slack alerts.
     pub network: Option<String>,
+}
+
+impl fmt::Debug for Config {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Config")
+            .field("binary_name", &self.binary_name)
+            .field("check_interval", &self.check_interval)
+            .field("memory_change_threshold", &self.memory_change_threshold)
+            .field("initial_delay", &self.initial_delay)
+            .field("dump_cooldown", &self.dump_cooldown)
+            .field("s3_bucket", &self.s3_bucket)
+            .field("s3_path_prefix", &self.s3_path_prefix)
+            .field("pod_name", &self.pod_name)
+            .field("history_window_size", &self.history_window_size)
+            .field("spike_multiplier", &self.spike_multiplier)
+            .field(
+                "slack_api_token",
+                &self.slack_api_token.as_ref().map(|_| "REDACTED"),
+            )
+            .field("environment", &self.environment)
+            .field("network", &self.network)
+            .finish()
+    }
 }
 
 impl Config {

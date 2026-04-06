@@ -9,7 +9,7 @@ mod slack;
 use {
     bytesize::ByteSize,
     config::Config,
-    detection::{DetectionMode, Detector, DumpReason},
+    detection::{Anomaly, Detector, DumpReason},
     history::History,
     std::path::PathBuf,
     tracing::{error, info, warn},
@@ -180,7 +180,7 @@ async fn main() {
         // Check for anomalies
         if let Some(detection) = detector.check(usage, current_p50, current_p95) {
             match detection.mode {
-                DetectionMode::Spike => {
+                Anomaly::Spike => {
                     let threshold = current_p95 * monitor.config.spike_multiplier;
                     info!(
                         usage = %ByteSize(usage),
@@ -190,7 +190,7 @@ async fn main() {
                         "SPIKE DETECTED"
                     );
                 }
-                DetectionMode::SlowLeak => {
+                Anomaly::SlowLeak => {
                     let threshold = detector.baseline_p50 + monitor.config.memory_change_threshold;
                     info!(
                         p50 = %ByteSize(current_p50),
