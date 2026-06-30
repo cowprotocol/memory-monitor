@@ -181,7 +181,7 @@ async fn main() {
         if let Some(detection) = detector.check(usage, current_p50, current_p95) {
             match detection.mode {
                 Anomaly::Spike => {
-                    let threshold = current_p95 * monitor.config.spike_multiplier;
+                    let threshold = (current_p95 as f64 * monitor.config.spike_multiplier) as u64;
                     info!(
                         usage = %ByteSize(usage),
                         multiplier = monitor.config.spike_multiplier,
