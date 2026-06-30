@@ -59,7 +59,7 @@ pub struct Detector {
     last_spike_dump_time: Option<Instant>,
     dump_cooldown: Duration,
     spike_cooldown: Duration,
-    spike_multiplier: u64,
+    spike_multiplier: f64,
     memory_change_threshold: u64,
 }
 
@@ -67,7 +67,7 @@ impl Detector {
     pub fn new(
         dump_cooldown: Duration,
         spike_cooldown: Duration,
-        spike_multiplier: u64,
+        spike_multiplier: f64,
         memory_change_threshold: u64,
     ) -> Self {
         Self {
@@ -90,7 +90,7 @@ impl Detector {
         current_p95: u64,
     ) -> Option<Detection> {
         // Spike detection: instantaneous memory > current P95 * multiplier
-        if current_usage > current_p95.saturating_mul(self.spike_multiplier) {
+        if (current_usage as f64) > current_p95 as f64 * self.spike_multiplier {
             return Some(Detection {
                 mode: Anomaly::Spike,
                 baseline_for_notification: current_p95,
@@ -145,7 +145,7 @@ mod tests {
         Detector::new(
             Duration::from_secs(60),  // dump_cooldown
             Duration::from_secs(600), // spike_cooldown
-            3,                        // spike_multiplier
+            3.0,                      // spike_multiplier
             200 * MB,                 // memory_change_threshold
         )
     }
@@ -187,6 +187,29 @@ mod tests {
 
         let result = det.check(at_boundary, 505 * MB, current_p95);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_spike_detection_fractional_multiplier() {
+        let mut det = Detector::new(
+            Duration::from_secs(60),
+            Duration::from_secs(600),
+            1.5, // fractional spike_multiplier
+            200 * MB,
+        );
+        det.baseline_p50 = 500 * MB;
+
+        let current_p95 = 520 * MB;
+
+        // 1.4x P95: below the 1.5x threshold, no spike
+        let below = current_p95 * 14 / 10;
+        assert!(det.check(below, 505 * MB, current_p95).is_none());
+
+        // 1.6x P95: above the 1.5x threshold, spike detected
+        let above = current_p95 * 16 / 10;
+        let result = det.check(above, 505 * MB, current_p95);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().mode, Anomaly::Spike);
     }
 
     #[test]

@@ -10,7 +10,7 @@ The sidecar runs alongside the target process in a shared-PID-namespace pod. It 
 
 Once the history window is full, a baseline P50 (median) is established. Each tick, two checks run:
 
-- **Spike**: instantaneous memory > P95 × multiplier (default 3x). Catches sudden allocations.
+- **Spike**: instantaneous memory > P95 × multiplier (default 3x, fractional ratios like 1.5x supported). Catches sudden allocations.
 - **Slow leak**: current P50 > baseline P50 + threshold. Catches gradual memory growth.
 
 Each mode has an independent cooldown timer. On detection, the monitor:
@@ -52,7 +52,7 @@ All configuration is via environment variables.
 | Variable              | Default | Description                                     |
 |-----------------------|---------|-------------------------------------------------|
 | `HISTORY_WINDOW_SIZE` | `60`    | Number of samples in the sliding window         |
-| `SPIKE_MULTIPLIER`    | `3`     | Multiplier of P95 for spike detection           |
+| `SPIKE_MULTIPLIER`    | `3`     | Multiplier of P95 for spike detection (fractional, e.g. `1.5`, allowed) |
 | `SLACK_API_TOKEN`     |         | Slack Bot token for notifications               |
 | `ENVIRONMENT`         |         | Environment name (prod/staging/shadow) for Slack routing |
 | `NETWORK`             |         | Network name included in Slack alerts           |

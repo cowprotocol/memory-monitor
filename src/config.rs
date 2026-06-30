@@ -24,8 +24,9 @@ pub struct Config {
     /// Number of memory samples kept in the sliding window (default 60).
     pub history_window_size: usize,
     /// Spike detection multiplier: a spike is detected when instantaneous
-    /// usage exceeds `P95 * spike_multiplier` (default 3).
-    pub spike_multiplier: u64,
+    /// usage exceeds `P95 * spike_multiplier` (default 3). Fractional ratios
+    /// (e.g. `1.5`) are supported.
+    pub spike_multiplier: f64,
     /// Slack Bot OAuth token. If absent, Slack notifications are skipped.
     pub slack_api_token: Option<String>,
     /// Deployment environment (e.g. `prod`, `staging`). Used for Slack
@@ -70,7 +71,7 @@ impl Config {
         let s3_path_prefix = required_env("S3_PATH_PREFIX")?;
         let pod_name = required_env("POD_NAME")?;
         let history_window_size = optional_env_parsed::<usize>("HISTORY_WINDOW_SIZE", 60)?;
-        let spike_multiplier = optional_env_parsed::<u64>("SPIKE_MULTIPLIER", 3)?;
+        let spike_multiplier = optional_env_parsed::<f64>("SPIKE_MULTIPLIER", 3.0)?;
         let slack_api_token = optional_env("SLACK_API_TOKEN");
         let environment = optional_env("ENVIRONMENT");
         let network = optional_env("NETWORK");
@@ -210,7 +211,7 @@ mod tests {
         assert_eq!(config.s3_path_prefix, "memory-dumps/");
         assert_eq!(config.pod_name, "test-pod-abc123");
         assert_eq!(config.history_window_size, 60);
-        assert_eq!(config.spike_multiplier, 3);
+        assert_eq!(config.spike_multiplier, 3.0);
         assert!(config.slack_api_token.is_none());
         assert!(config.environment.is_none());
         assert!(config.network.is_none());
@@ -224,14 +225,14 @@ mod tests {
         clear_all_env_vars();
         set_required_env_vars();
         env::set_var("HISTORY_WINDOW_SIZE", "120");
-        env::set_var("SPIKE_MULTIPLIER", "5");
+        env::set_var("SPIKE_MULTIPLIER", "1.5");
         env::set_var("SLACK_API_TOKEN", "xoxb-test-token");
         env::set_var("ENVIRONMENT", "prod");
         env::set_var("NETWORK", "mainnet");
 
         let config = Config::from_env().unwrap();
         assert_eq!(config.history_window_size, 120);
-        assert_eq!(config.spike_multiplier, 5);
+        assert_eq!(config.spike_multiplier, 1.5);
         assert_eq!(config.slack_api_token.as_deref(), Some("xoxb-test-token"));
         assert_eq!(config.environment.as_deref(), Some("prod"));
         assert_eq!(config.network.as_deref(), Some("mainnet"));
