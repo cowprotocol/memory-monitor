@@ -142,7 +142,8 @@ mod tests {
 
     #[test]
     fn test_percentile_matches_shell_formula() {
-        // Replicate the shell's ceil(count * percentile / 100) = (count*p + 99)/100
+        // Replicate the shell's ceil(count * percentile / 100) = (count*p +
+        // 99)/100
         let mut h = History::new(60);
         for v in 1..=60 {
             h.push(v * 1024 * 1024); // simulate MB values in bytes
